@@ -1,21 +1,447 @@
-// Zen Second Sidebar - Sine Compatible
-// A second sidebar with web panels for Zen Browser
-console.log("=== ZEN SECOND SIDEBAR SCRIPT LOADING ===");
-console.log("Date:", new Date().toISOString());
-console.log("Location:", window.location.href);
+// ==UserScript==
+// @name           zen-sidepanels-core.uc.js
+// @description    Central engine for Zen Sidepanels
+// @author         leandromesq
+// @version        v0.1
+// @include        main
+// @grant          none
+// ==/UserScript==
 
 (function() {
-  console.log("Zen Second Sidebar: Script execution started");
+  'use strict';
 
-  // Check if already loaded to prevent multiple initializations
-  if (window.zenSecondSidebarLoaded) {
-    console.log("Zen Second Sidebar: Already loaded, skipping...");
-    return;
+  // Prevent multiple initializations
+  if (window.ZenSidepanels) {
+    window.ZenSidepanels.destroy();
   }
-  window.zenSecondSidebarLoaded = true;
-  console.log("Zen Second Sidebar: Marked as loaded");
 
-  // Simplified preference helper - fallback to localStorage if Components not available
+  window.ZenSidepanels = {
+    _modules: [],
+    _initialized: false,
+
+    logger: {
+      _prefix: '[ZenSidepanels]',
+      log(msg) { console.log(`${this._prefix} ${msg}`); },
+      warn(msg) { console.warn(`${this._prefix} ${msg}`); },
+      error(msg) { console.error(`${this._prefix} ${msg}`); }
+    },
+
+    runOnLoad(callback) {
+      if (document.readyState === 'complete') callback();
+      else document.addEventListener('DOMContentLoaded', callback, { once: true });
+    },
+
+    register(name, ModuleClass) {
+      if (this._modules.find(m => m._name === name)) {
+        this.logger.warn(`Module "${name}" already registered.`);
+        return;
+      }
+      const instance = new ModuleClass();
+      instance._name = name;
+      this._modules.push(instance);
+      if (this._initialized && typeof instance.init === 'function') {
+        try {
+          instance.init();
+        } catch (err) {
+          this.logger.error(`Module "${name}" failed to init:\n${err}`);
+        }
+      }
+    },
+
+    getModule(name) {
+      return this._modules.find(m => m._name === name);
+    },
+
+    init() {
+      this.logger.log('⏳ Initializing core...');
+      this._initialized = true;
+      this.runOnLoad(() => {
+        this._modules.forEach(m => {
+          try {
+            m.init?.();
+          } catch (err) {
+            this.logger.error(`Module "${m._name}" failed to init:\n${err}`);
+          }
+        });
+      });
+      window.addEventListener('unload', () => this.destroy(), { once: true });
+    },
+
+    destroy() {
+      this._modules.forEach(m => {
+        try {
+          m.destroy?.();
+        } catch (err) {
+          this.logger.error(`Module "${m._name}" failed to destroy:\n${err}`);
+        }
+      });
+      this.logger.log('🧹 All modules destroyed.');
+      delete window.ZenSidepanels;
+    },
+
+    debug: {
+      listModules() {
+        return ZenSidepanels._modules.map(m => m._name || 'Unnamed');
+      },
+      destroyModule(name) {
+        const mod = ZenSidepanels._modules.find(m => m._name === name);
+        try {
+          mod?.destroy?.();
+        } catch (err) {
+          ZenSidepanels.logger.error(`Module "${name}" failed to destroy:\n${err}`);
+        }
+      },
+      reload() {
+        ZenSidepanels.destroy();
+        location.reload();
+      }
+    }
+  };
+
+  // ========== ZenSidebarModule ==========
+  class ZenSidebarModule {
+    constructor() {
+      this.sidebarElement = null;
+      this.sidebarContainer = null;
+      this.CONFIG = {
+        enabled: true,
+        position: "right",
+        width: 300,
+        autoHide: false,
+        animated: true,
+        containerBorder: "left"
+      };
+    }
+
+    init() {
+      ZenSidepanels.logger.log("🚀 [Sidebar] Initializing...");
+      
+      // Check if we're in the right environment
+      if (window !== window.top) {
+        ZenSidepanels.logger.log("⚠️ [Sidebar] Not in top window, skipping.");
+        return;
+      }
+
+      // Find the zen-tabbox-wrapper
+      const zenTabboxWrapper = document.getElementById("zen-tabbox-wrapper");
+      if (!zenTabboxWrapper) {
+        ZenSidepanels.logger.error("❌ [Sidebar] zen-tabbox-wrapper not found!");
+        return;
+      }
+
+      try {
+        this.createSidebarStructure();
+        this.injectCSS();
+        this.setupEventListeners();
+        ZenSidepanels.logger.log("✅ [Sidebar] Initialized successfully!");
+      } catch (error) {
+        ZenSidepanels.logger.error(`❌ [Sidebar] Failed to initialize: ${error}`);
+      }
+    }
+
+    createSidebarStructure() {
+      const zenTabboxWrapper = document.getElementById("zen-tabbox-wrapper");
+      
+      // Create the main sidebar container
+      this.sidebarContainer = document.createElement("div");
+      this.sidebarContainer.id = "zen-second-sidebar-container";
+      this.sidebarContainer.style.cssText = `
+        display: flex;
+        flex-direction: ${this.CONFIG.position === "left" ? "row" : "row-reverse"};
+        width: 100%;
+        height: 100%;
+      `;
+
+      // Create the main sidebar element
+      this.sidebarElement = document.createElement("div");
+      this.sidebarElement.id = "zen-second-sidebar";
+      this.sidebarElement.style.cssText = `
+        width: ${this.CONFIG.width}px;
+        height: 100%;
+        background-color: var(--zen-colors-secondary, var(--toolbar-bgcolor, #2d2d2d));
+        border-radius: var(--zen-border-radius, 8px);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        z-index: 10;
+        box-shadow: var(--zen-big-shadow, 0 2px 8px rgba(0,0,0,0.2));
+        border: 1px solid var(--zen-colors-border, var(--chrome-content-separator-color, #555));
+      `;
+
+      // Create content wrapper
+      const contentWrapper = document.createElement("div");
+      contentWrapper.className = "zen-second-sidebar-content-wrapper";
+      contentWrapper.style.cssText = `
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      `;
+
+      // Move existing content into wrapper
+      const existingContent = Array.from(zenTabboxWrapper.children);
+      existingContent.forEach(child => {
+        contentWrapper.appendChild(child);
+      });
+
+      // Assemble the structure
+      if (this.CONFIG.position === "left") {
+        this.sidebarContainer.appendChild(this.sidebarElement);
+        this.sidebarContainer.appendChild(contentWrapper);
+      } else {
+        this.sidebarContainer.appendChild(contentWrapper);
+        this.sidebarContainer.appendChild(this.sidebarElement);
+      }
+
+      // Replace zen-tabbox-wrapper content
+      zenTabboxWrapper.appendChild(this.sidebarContainer);
+
+      // Create sidebar content
+      this.createSidebarContent();
+    }
+
+    createSidebarContent() {
+      // Create toolbar
+      const toolbar = document.createElement("div");
+      toolbar.className = "zen-second-sidebar-toolbar";
+      toolbar.style.cssText = `
+        display: flex;
+        align-items: center;
+        padding: 8px;
+        background-color: var(--zen-colors-primary, var(--toolbar-bgcolor, #2d2d2d));
+        border-bottom: 1px solid var(--zen-colors-border, var(--chrome-content-separator-color, #333));
+        min-height: 40px;
+      `;
+
+      // Create navigation buttons
+      const backBtn = document.createElement("button");
+      backBtn.textContent = "←";
+      backBtn.title = "Back";
+      backBtn.style.cssText = `
+        background: transparent;
+        border: none;
+        color: var(--zen-colors-text, var(--toolbar-color, white));
+        padding: 6px;
+        margin: 2px;
+        border-radius: var(--zen-border-radius, 4px);
+        cursor: pointer;
+        min-width: 32px;
+        height: 32px;
+      `;
+
+      const forwardBtn = document.createElement("button");
+      forwardBtn.textContent = "→";
+      forwardBtn.title = "Forward";
+      forwardBtn.style.cssText = backBtn.style.cssText;
+
+      const refreshBtn = document.createElement("button");
+      refreshBtn.textContent = "↻";
+      refreshBtn.title = "Refresh";
+      refreshBtn.style.cssText = backBtn.style.cssText;
+
+      // Create URL bar
+      const urlBar = document.createElement("input");
+      urlBar.type = "text";
+      urlBar.placeholder = "Enter URL...";
+      urlBar.style.cssText = `
+        flex: 1;
+        background: var(--zen-colors-input, var(--toolbar-field-background-color, #333));
+        border: 1px solid var(--zen-colors-border, var(--toolbar-field-border-color, #555));
+        border-radius: var(--zen-border-radius, 4px);
+        padding: 6px 8px;
+        color: var(--zen-colors-text, var(--toolbar-field-color, white));
+        font-size: 12px;
+        margin: 0 4px;
+      `;
+
+      // Create new panel button
+      const newPanelBtn = document.createElement("button");
+      newPanelBtn.textContent = "+";
+      newPanelBtn.title = "New Web Panel";
+      newPanelBtn.style.cssText = backBtn.style.cssText;
+
+      // Create web panel content area
+      const contentArea = document.createElement("div");
+      contentArea.className = "zen-web-panel-content";
+      contentArea.style.cssText = `
+        flex: 1;
+        overflow: hidden;
+        position: relative;
+        background-color: var(--zen-main-browser-background, white);
+      `;
+
+      // Create default iframe
+      const iframe = document.createElement("iframe");
+      iframe.id = "zen-sidebar-iframe";
+      iframe.src = "about:blank";
+      iframe.style.cssText = `
+        width: 100%;
+        height: 100%;
+        border: none;
+        background: var(--zen-main-browser-background, white);
+      `;
+
+      // Assemble the toolbar
+      toolbar.appendChild(backBtn);
+      toolbar.appendChild(forwardBtn);
+      toolbar.appendChild(refreshBtn);
+      toolbar.appendChild(urlBar);
+      toolbar.appendChild(newPanelBtn);
+      
+      // Assemble the content
+      contentArea.appendChild(iframe);
+      
+      // Add to sidebar
+      this.sidebarElement.appendChild(toolbar);
+      this.sidebarElement.appendChild(contentArea);
+
+      // Store references for event handling
+      this.urlBar = urlBar;
+      this.iframe = iframe;
+      this.backBtn = backBtn;
+      this.forwardBtn = forwardBtn;
+      this.refreshBtn = refreshBtn;
+      this.newPanelBtn = newPanelBtn;
+    }
+
+    injectCSS() {
+      const css = `
+        .zen-second-sidebar-container {
+          position: relative;
+          z-index: 1;
+        }
+
+        .zen-second-sidebar .zen-nav-button:hover {
+          background-color: var(--toolbarbutton-hover-background, rgba(255,255,255,0.1));
+        }
+
+        .zen-second-sidebar .zen-nav-button:active {
+          background-color: var(--toolbarbutton-active-background, rgba(255,255,255,0.2));
+        }
+
+        .zen-second-sidebar-content-wrapper {
+          display: flex;
+          flex-direction: column;
+        }
+
+        #main-window[zen-second-sidebar-enabled="true"] {
+          /* Mark main window for CSS targeting */
+        }
+      `;
+
+      const styleElement = document.createElement("style");
+      styleElement.textContent = css;
+      document.head.appendChild(styleElement);
+    }
+
+    setupEventListeners() {
+      if (!this.urlBar || !this.iframe) return;
+
+      // URL bar navigation
+      this.urlBar.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          let url = this.urlBar.value.trim();
+          if (url) {
+            // Add protocol if missing
+            if (!url.includes("://")) {
+              url = url.includes(".") ? `https://${url}` : `https://www.google.com/search?q=${encodeURIComponent(url)}`;
+            }
+            this.iframe.src = url;
+            this.urlBar.value = url;
+          }
+        }
+      });
+
+      // Navigation buttons
+      this.backBtn.addEventListener("click", () => {
+        try {
+          this.iframe.contentWindow.history.back();
+        } catch (e) {
+          ZenSidepanels.logger.log("Cannot navigate back");
+        }
+      });
+
+      this.forwardBtn.addEventListener("click", () => {
+        try {
+          this.iframe.contentWindow.history.forward();
+        } catch (e) {
+          ZenSidepanels.logger.log("Cannot navigate forward");
+        }
+      });
+
+      this.refreshBtn.addEventListener("click", () => {
+        this.iframe.contentWindow.location.reload();
+      });
+
+      this.newPanelBtn.addEventListener("click", () => {
+        const url = prompt("Enter URL for new web panel:");
+        if (url) {
+          let formattedUrl = url.trim();
+          if (!formattedUrl.includes("://")) {
+            formattedUrl = formattedUrl.includes(".") ? `https://${formattedUrl}` : `https://www.google.com/search?q=${encodeURIComponent(formattedUrl)}`;
+          }
+          this.iframe.src = formattedUrl;
+          this.urlBar.value = formattedUrl;
+        }
+      });
+
+      // Update URL bar when iframe navigates
+      this.iframe.addEventListener("load", () => {
+        try {
+          if (this.iframe.contentWindow.location.href !== "about:blank") {
+            this.urlBar.value = this.iframe.contentWindow.location.href;
+          }
+        } catch (e) {
+          // Cross-origin frame, can't access location
+        }
+      });
+
+      // Mark main window
+      const mainWindow = document.getElementById("main-window");
+      if (mainWindow) {
+        mainWindow.setAttribute("zen-second-sidebar-enabled", "true");
+        mainWindow.setAttribute("zen-second-sidebar-position", this.CONFIG.position);
+      }
+    }
+
+    destroy() {
+      if (this.sidebarContainer && this.sidebarContainer.parentNode) {
+        // Restore original zen-tabbox-wrapper content
+        const zenTabboxWrapper = document.getElementById("zen-tabbox-wrapper");
+        const contentWrapper = this.sidebarContainer.querySelector(".zen-second-sidebar-content-wrapper");
+        
+        if (zenTabboxWrapper && contentWrapper) {
+          // Move content back
+          Array.from(contentWrapper.children).forEach(child => {
+            zenTabboxWrapper.appendChild(child);
+          });
+          
+          // Remove our container
+          this.sidebarContainer.remove();
+        }
+      }
+      
+      const mainWindow = document.getElementById("main-window");
+      if (mainWindow) {
+        mainWindow.removeAttribute("zen-second-sidebar-enabled");
+        mainWindow.removeAttribute("zen-second-sidebar-position");
+      }
+      
+      ZenSidepanels.logger.log("🧹 [Sidebar] Destroyed.");
+    }
+  }
+
+  // Register modules
+  ZenSidepanels.register("ZenSidebarModule", ZenSidebarModule);
+
+  // Start the core
+  ZenSidepanels.init();
+})();
+
+// Second implementation starts here
+(function() {
+  'use strict';
+
   const Prefs = {
     get(prefName, defaultValue = null) {
       try {
@@ -284,8 +710,6 @@ console.log("Location:", window.location.href);
     },
 
     createSidebarContent() {
-
-    createSidebarContent() {
       // Create toolbar
       const toolbar = createElement("div", {
         class: "zen-second-sidebar-toolbar",
@@ -526,7 +950,6 @@ console.log("Location:", window.location.href);
           this.sidebarElement.style.borderBottom = defaultBorder;
           break;
       }
-    },
     },
 
     applySettings() {
