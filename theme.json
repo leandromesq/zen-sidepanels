@@ -1,0 +1,26 @@
+{
+    "id": "zen-second-sidebar",
+    "name": "Zen Sidepanels - Second Sidebar",
+    "description": "A second sidebar with web panels for Zen Browser, bringing web panels back with native feel and look. Supports customizable positioning, web panel management, and auto-hide features.",
+    "homepage": "https://github.com/leandromesq/zen-sidepanels",
+    "preferences": "https://raw.githubusercontent.com/leandromesq/zen-sidepanels/main/preferences.json",
+    "style": "https://raw.githubusercontent.com/leandromesq/zen-sidepanels/main/style.css",
+    "js": true,
+    "readme": "https://raw.githubusercontent.com/leandromesq/zen-sidepanels/main/README.md",
+    "author": "leandromesq",
+    "version": "0.1.0",
+    "tags": [
+        "sidebar",
+        "web panels",
+        "zen browser",
+        "navigation",
+        "productivity",
+        "ui enhancement",
+        "sine"
+    ],
+    "createdAt": "2025-08-29",
+    "updatedAt": "2025-08-29",
+    "fork": [
+        "zen"
+    ]
+}

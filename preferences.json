@@ -1,0 +1,227 @@
+[
+    {
+        "property": "zen-extra-sidebar.enabled",
+        "label": "Enable Second Sidebar",
+        "type": "checkbox",
+        "default": true,
+        "description": "Globally enables or disables the second sidebar functionality."
+    },
+    {
+        "type": "separator",
+        "id": "sidebar-general-separator",
+        "label": "General Settings",
+        "conditions": [
+            {
+                "if": {
+                    "property": "zen-extra-sidebar.enabled",
+                    "value": true
+                }
+            }
+        ]
+    },
+    {
+        "property": "zen-extra-sidebar.settings.position",
+        "label": "Sidebar Position",
+        "type": "dropdown",
+        "default": "right",
+        "description": "Choose which side of the browser the second sidebar should appear on.",
+        "options": [
+            {
+                "value": "left",
+                "label": "Left Side"
+            },
+            {
+                "value": "right",
+                "label": "Right Side"
+            }
+        ],
+        "conditions": [
+            {
+                "if": {
+                    "property": "zen-extra-sidebar.enabled",
+                    "value": true
+                }
+            }
+        ]
+    },
+    {
+        "property": "zen-extra-sidebar.settings.autoHideSidebar",
+        "label": "Auto Hide Sidebar",
+        "type": "checkbox",
+        "default": false,
+        "description": "Automatically hide the sidebar when not in use.",
+        "conditions": [
+            {
+                "if": {
+                    "property": "zen-extra-sidebar.enabled",
+                    "value": true
+                }
+            }
+        ]
+    },
+    {
+        "property": "zen-extra-sidebar.settings.hideSidebarAnimated",
+        "label": "Animated Hide/Show",
+        "type": "checkbox",
+        "default": false,
+        "description": "Use smooth animations when hiding and showing the sidebar.",
+        "conditions": [
+            {
+                "if": {
+                    "property": "zen-extra-sidebar.enabled",
+                    "value": true
+                }
+            }
+        ]
+    },
+    {
+        "property": "zen-extra-sidebar.settings.hideInPopupWindows",
+        "label": "Hide in Popup Windows",
+        "type": "checkbox",
+        "default": false,
+        "description": "Hide the second sidebar in popup windows.",
+        "conditions": [
+            {
+                "if": {
+                    "property": "zen-extra-sidebar.enabled",
+                    "value": true
+                }
+            }
+        ]
+    },
+    {
+        "type": "separator",
+        "id": "web-panel-separator",
+        "label": "Web Panel Settings",
+        "conditions": [
+            {
+                "if": {
+                    "property": "zen-extra-sidebar.enabled",
+                    "value": true
+                }
+            }
+        ]
+    },
+    {
+        "property": "zen-extra-sidebar.settings.newWebPanelPosition",
+        "label": "New Web Panel Position",
+        "type": "dropdown",
+        "default": "after",
+        "description": "Where to place new web panels relative to existing ones.",
+        "options": [
+            {
+                "value": "before",
+                "label": "Before Current"
+            },
+            {
+                "value": "after",
+                "label": "After Current"
+            },
+            {
+                "value": "top",
+                "label": "At Top"
+            },
+            {
+                "value": "bottom",
+                "label": "At Bottom"
+            }
+        ],
+        "conditions": [
+            {
+                "if": {
+                    "property": "zen-extra-sidebar.enabled",
+                    "value": true
+                }
+            }
+        ]
+    },
+    {
+        "type": "separator",
+        "id": "navigation-separator",
+        "label": "Navigation Controls",
+        "conditions": [
+            {
+                "if": {
+                    "property": "zen-extra-sidebar.enabled",
+                    "value": true
+                }
+            }
+        ]
+    },
+    {
+        "property": "zen-extra-sidebar.settings.autoHideBackButton",
+        "label": "Auto Hide Back Button",
+        "type": "checkbox",
+        "default": false,
+        "description": "Automatically hide the back button when it's not available.",
+        "conditions": [
+            {
+                "if": {
+                    "property": "zen-extra-sidebar.enabled",
+                    "value": true
+                }
+            }
+        ]
+    },
+    {
+        "property": "zen-extra-sidebar.settings.autoHideForwardButton",
+        "label": "Auto Hide Forward Button",
+        "type": "checkbox",
+        "default": false,
+        "description": "Automatically hide the forward button when it's not available.",
+        "conditions": [
+            {
+                "if": {
+                    "property": "zen-extra-sidebar.enabled",
+                    "value": true
+                }
+            }
+        ]
+    },
+    {
+        "type": "separator",
+        "id": "appearance-separator",
+        "label": "Appearance",
+        "conditions": [
+            {
+                "if": {
+                    "property": "zen-extra-sidebar.enabled",
+                    "value": true
+                }
+            }
+        ]
+    },
+    {
+        "property": "zen-extra-sidebar.settings.containerBorder",
+        "label": "Container Border",
+        "type": "dropdown",
+        "default": "left",
+        "description": "Which side of the container should have a border.",
+        "options": [
+            {
+                "value": "none",
+                "label": "No Border"
+            },
+            {
+                "value": "left",
+                "label": "Left Border"
+            },
+            {
+                "value": "right",
+                "label": "Right Border"
+            },
+            {
+                "value": "both",
+                "label": "Both Sides"
+            }
+        ],
+        "conditions": [
+            {
+                "if": {
+                    "property": "zen-extra-sidebar.enabled",
+                    "value": true
+                }
+            }
+        ]
+    }
+]
