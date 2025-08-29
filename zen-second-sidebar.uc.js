@@ -17,14 +17,66 @@
   }
   window.zenSecondSidebarLoaded = true;
 
-  // Simple configuration object - no Services.prefs dependency
+  // Preference helper - simple about:config access like Nebula uses
+  const Prefs = {
+    get(prefName, defaultValue = null) {
+      try {
+        const prefs = Components.classes["@mozilla.org/preferences-service;1"]
+          .getService(Components.interfaces.nsIPrefService)
+          .getBranch("");
+        
+        if (!prefs.prefHasUserValue(prefName)) return defaultValue;
+        
+        switch (prefs.getPrefType(prefName)) {
+          case prefs.PREF_BOOL: return prefs.getBoolPref(prefName);
+          case prefs.PREF_INT: return prefs.getIntPref(prefName);
+          case prefs.PREF_STRING: return prefs.getStringPref(prefName);
+          default: return defaultValue;
+        }
+      } catch (e) {
+        return defaultValue;
+      }
+    },
+    
+    set(prefName, value) {
+      try {
+        const prefs = Components.classes["@mozilla.org/preferences-service;1"]
+          .getService(Components.interfaces.nsIPrefService)
+          .getBranch("");
+          
+        switch (typeof value) {
+          case 'boolean': prefs.setBoolPref(prefName, value); break;
+          case 'number': prefs.setIntPref(prefName, value); break;
+          case 'string': prefs.setStringPref(prefName, value); break;
+        }
+      } catch (e) {
+        console.error("Failed to set pref:", prefName, e);
+      }
+    }
+  };
+
+  // Configuration with about:config integration
   const CONFIG = {
-    enabled: true,
-    position: "right", // "left" or "right"
-    autoHide: false,
-    animated: true,
-    containerBorder: "left", // "none", "left", "right", "both"
-    hideInPopupWindows: false
+    get enabled() { return Prefs.get("zen-second-sidebar.enabled", true); },
+    set enabled(val) { Prefs.set("zen-second-sidebar.enabled", val); },
+    
+    get position() { return Prefs.get("zen-second-sidebar.position", "right"); },
+    set position(val) { Prefs.set("zen-second-sidebar.position", val); },
+    
+    get autoHide() { return Prefs.get("zen-second-sidebar.autoHide", false); },
+    set autoHide(val) { Prefs.set("zen-second-sidebar.autoHide", val); },
+    
+    get animated() { return Prefs.get("zen-second-sidebar.animated", true); },
+    set animated(val) { Prefs.set("zen-second-sidebar.animated", val); },
+    
+    get containerBorder() { return Prefs.get("zen-second-sidebar.containerBorder", "left"); },
+    set containerBorder(val) { Prefs.set("zen-second-sidebar.containerBorder", val); },
+    
+    get hideInPopupWindows() { return Prefs.get("zen-second-sidebar.hideInPopupWindows", false); },
+    set hideInPopupWindows(val) { Prefs.set("zen-second-sidebar.hideInPopupWindows", val); },
+    
+    get width() { return Prefs.get("zen-second-sidebar.width", 300); },
+    set width(val) { Prefs.set("zen-second-sidebar.width", val); }
   };
 
   const debugLog = (...args) => {
@@ -62,10 +114,11 @@
     return element;
   };
 
-  // Main ZenSecondSidebar implementation
+  // Main ZenSecondSidebar implementation following Nebula patterns
   const ZenSecondSidebar = {
     initialized: false,
     sidebarElement: null,
+    sidebarContainer: null,
     webPanels: [],
 
     init() {
@@ -86,6 +139,7 @@
         }
 
         this.createSidebarStructure();
+        this.injectCSS();
         this.applySettings();
         this.setupEventListeners();
         
@@ -99,38 +153,82 @@
     createSidebarStructure() {
       debugLog("Creating sidebar structure...");
       
-      // Find the main container - try multiple possible containers
+      // Find the zen-tabbox-wrapper (verified to exist in Zen browser)
       const zenTabboxWrapper = document.getElementById("zen-tabbox-wrapper");
-      const mainWindow = document.getElementById("main-window");
-      const browserContainer = document.getElementById("browser");
-      const appcontent = document.getElementById("appcontent");
-      
-      const container = zenTabboxWrapper || mainWindow || browserContainer || appcontent || document.body;
-      
-      if (!container) {
-        debugError("Could not find any valid container element");
+      if (!zenTabboxWrapper) {
+        debugError("zen-tabbox-wrapper not found - required for proper integration");
         return;
       }
       
-      debugLog("Using container:", container.id || container.tagName);
+      debugLog("Using zen-tabbox-wrapper container for integration");
 
-      // Create the main sidebar container
+      // Create the main sidebar container that integrates with Zen's layout
+      this.sidebarContainer = createElement("div", {
+        id: "zen-second-sidebar-container",
+        class: "zen-second-sidebar-container",
+        style: {
+          display: "flex",
+          flexDirection: CONFIG.position === "left" ? "row" : "row-reverse",
+          width: "100%",
+          height: "100%"
+        }
+      });
+
+      // Create the main sidebar element
       this.sidebarElement = createElement("div", {
         id: "zen-second-sidebar",
         class: "zen-second-sidebar",
         style: {
-          position: "fixed",
-          top: "0",
-          height: "100vh",
-          width: "300px",
-          backgroundColor: "var(--zen-colors-secondary, #1e1e1e)",
-          borderLeft: "1px solid var(--zen-colors-border, #333)",
-          zIndex: "100",
+          width: `${CONFIG.width}px`,
+          height: "100%",
+          backgroundColor: "var(--zen-colors-secondary, var(--toolbar-bgcolor, #2d2d2d))",
+          borderRadius: "var(--zen-border-radius, 8px)",
           display: "flex",
-          flexDirection: "column"
+          flexDirection: "column",
+          overflow: "hidden",
+          zIndex: "10"
         }
       });
 
+      // Create content wrapper for the rest of Zen's content
+      const contentWrapper = createElement("div", {
+        class: "zen-second-sidebar-content-wrapper",
+        style: {
+          flex: "1",
+          minWidth: "0"
+        }
+      });
+
+      // Move existing content into wrapper
+      const existingContent = Array.from(zenTabboxWrapper.children);
+      existingContent.forEach(child => {
+        contentWrapper.appendChild(child);
+      });
+
+      // Add border styling
+      this.updateBorderStyling();
+
+      // Assemble the structure
+      if (CONFIG.position === "left") {
+        this.sidebarContainer.appendChild(this.sidebarElement);
+        this.sidebarContainer.appendChild(contentWrapper);
+      } else {
+        this.sidebarContainer.appendChild(contentWrapper);
+        this.sidebarContainer.appendChild(this.sidebarElement);
+      }
+
+      // Replace zen-tabbox-wrapper content
+      zenTabboxWrapper.appendChild(this.sidebarContainer);
+
+      // Create sidebar content
+      this.createSidebarContent();
+
+      debugLog("Sidebar structure created and integrated");
+    },
+
+    createSidebarContent() {
+
+    createSidebarContent() {
       // Create toolbar
       const toolbar = createElement("div", {
         class: "zen-second-sidebar-toolbar",
@@ -138,24 +236,24 @@
           display: "flex",
           alignItems: "center",
           padding: "8px",
-          backgroundColor: "var(--zen-colors-primary, #2d2d2d)",
-          borderBottom: "1px solid var(--zen-colors-border, #333)",
+          backgroundColor: "var(--zen-colors-primary, var(--toolbar-bgcolor, #2d2d2d))",
+          borderBottom: "1px solid var(--zen-colors-border, var(--chrome-content-separator-color, #333))",
           minHeight: "40px"
         }
       });
 
-      // Create navigation buttons
+      // Create navigation buttons using Zen's styling patterns
       const backBtn = createElement("button", {
         id: "zen-sidebar-back",
-        class: "zen-nav-button",
+        class: "zen-nav-button toolbarbutton-1",
         title: "Back",
         style: {
           background: "transparent",
           border: "none",
-          color: "var(--zen-colors-text, white)",
+          color: "var(--zen-colors-text, var(--toolbar-color, white))",
           padding: "6px",
           margin: "2px",
-          borderRadius: "4px",
+          borderRadius: "var(--zen-border-radius, 4px)",
           cursor: "pointer",
           minWidth: "32px",
           height: "32px"
@@ -164,15 +262,15 @@
 
       const forwardBtn = createElement("button", {
         id: "zen-sidebar-forward", 
-        class: "zen-nav-button",
+        class: "zen-nav-button toolbarbutton-1",
         title: "Forward",
         style: {
           background: "transparent",
           border: "none", 
-          color: "var(--zen-colors-text, white)",
+          color: "var(--zen-colors-text, var(--toolbar-color, white))",
           padding: "6px",
           margin: "2px",
-          borderRadius: "4px",
+          borderRadius: "var(--zen-border-radius, 4px)",
           cursor: "pointer",
           minWidth: "32px",
           height: "32px"
@@ -181,22 +279,22 @@
 
       const refreshBtn = createElement("button", {
         id: "zen-sidebar-refresh",
-        class: "zen-nav-button",
+        class: "zen-nav-button toolbarbutton-1",
         title: "Refresh",
         style: {
           background: "transparent",
           border: "none",
-          color: "var(--zen-colors-text, white)",
+          color: "var(--zen-colors-text, var(--toolbar-color, white))",
           padding: "6px",
           margin: "2px", 
-          borderRadius: "4px",
+          borderRadius: "var(--zen-border-radius, 4px)",
           cursor: "pointer",
           minWidth: "32px",
           height: "32px"
         }
       }, ["↻"]);
 
-      // Create URL bar
+      // Create URL bar with Zen styling
       const urlBar = createElement("input", {
         id: "zen-sidebar-urlbar",
         type: "text",
@@ -204,11 +302,11 @@
         class: "zen-panel-urlbar",
         style: {
           flex: "1",
-          background: "var(--zen-colors-input, #333)",
-          border: "1px solid var(--zen-colors-border, #333)",
-          borderRadius: "4px",
+          background: "var(--zen-colors-input, var(--toolbar-field-background-color, #333))",
+          border: "1px solid var(--zen-colors-border, var(--toolbar-field-border-color, #555))",
+          borderRadius: "var(--zen-border-radius, 4px)",
           padding: "6px 8px",
-          color: "var(--zen-colors-text, white)",
+          color: "var(--zen-colors-text, var(--toolbar-field-color, white))",
           fontSize: "12px",
           margin: "0 4px"
         }
@@ -217,15 +315,15 @@
       // Create new panel button
       const newPanelBtn = createElement("button", {
         id: "zen-sidebar-new-panel",
-        class: "zen-nav-button",
+        class: "zen-nav-button toolbarbutton-1",
         title: "New Web Panel",
         style: {
           background: "transparent",
           border: "none",
-          color: "var(--zen-colors-text, white)", 
+          color: "var(--zen-colors-text, var(--toolbar-color, white))", 
           padding: "6px",
           margin: "2px",
-          borderRadius: "4px",
+          borderRadius: "var(--zen-border-radius, 4px)",
           cursor: "pointer",
           minWidth: "32px",
           height: "32px"
@@ -238,7 +336,8 @@
         style: {
           flex: "1",
           overflow: "hidden",
-          position: "relative"
+          position: "relative",
+          backgroundColor: "var(--zen-main-browser-background, white)"
         }
       });
 
@@ -251,26 +350,126 @@
           width: "100%",
           height: "100%",
           border: "none",
-          background: "white"
+          background: "var(--zen-main-browser-background, white)"
         }
       });
 
-      // Assemble the structure
+      // Assemble the toolbar
       toolbar.appendChild(backBtn);
       toolbar.appendChild(forwardBtn);
       toolbar.appendChild(refreshBtn);
       toolbar.appendChild(urlBar);
       toolbar.appendChild(newPanelBtn);
       
+      // Assemble the content
       contentArea.appendChild(iframe);
       
+      // Add to sidebar
       this.sidebarElement.appendChild(toolbar);
       this.sidebarElement.appendChild(contentArea);
 
-      // Add to document
-      document.body.appendChild(this.sidebarElement);
+      debugLog("Sidebar content created");
+    },
 
-      debugLog("Sidebar structure created");
+    injectCSS() {
+      // Inject CSS for better integration with Zen's theme system
+      const css = `
+        .zen-second-sidebar-container {
+          position: relative;
+          z-index: 1;
+        }
+
+        .zen-second-sidebar {
+          box-shadow: var(--zen-big-shadow, 0 2px 8px rgba(0,0,0,0.2));
+          border: 1px solid var(--zen-colors-border, var(--chrome-content-separator-color, #555));
+        }
+
+        .zen-second-sidebar .toolbarbutton-1:hover {
+          background-color: var(--toolbarbutton-hover-background, rgba(255,255,255,0.1));
+        }
+
+        .zen-second-sidebar .toolbarbutton-1:active {
+          background-color: var(--toolbarbutton-active-background, rgba(255,255,255,0.2));
+        }
+
+        .zen-second-sidebar-content-wrapper {
+          display: flex;
+          flex-direction: column;
+        }
+
+        /* Auto-hide animation styles */
+        .zen-second-sidebar[data-auto-hide="true"] {
+          transition: transform 0.3s ease-in-out;
+        }
+
+        .zen-second-sidebar[data-auto-hide="true"][data-position="left"].hidden {
+          transform: translateX(-290px);
+        }
+
+        .zen-second-sidebar[data-auto-hide="true"][data-position="right"].hidden {
+          transform: translateX(290px);
+        }
+
+        /* Border styling */
+        .zen-second-sidebar[data-border="left"] {
+          border-left: 2px solid var(--zen-primary-color, #0060df);
+          border-right: none;
+        }
+
+        .zen-second-sidebar[data-border="right"] {
+          border-right: 2px solid var(--zen-primary-color, #0060df);
+          border-left: none;
+        }
+
+        .zen-second-sidebar[data-border="both"] {
+          border-left: 2px solid var(--zen-primary-color, #0060df);
+          border-right: 2px solid var(--zen-primary-color, #0060df);
+        }
+
+        .zen-second-sidebar[data-border="none"] {
+          border: 1px solid var(--zen-colors-border, var(--chrome-content-separator-color, #555));
+        }
+      `;
+
+      const styleElement = document.createElement("style");
+      styleElement.textContent = css;
+      document.head.appendChild(styleElement);
+    },
+
+    updateBorderStyling() {
+      if (!this.sidebarElement) return;
+
+      const border = CONFIG.containerBorder;
+      this.sidebarElement.setAttribute("data-border", border);
+
+      // Update border styling based on position and border preference
+      const borderColor = "var(--zen-primary-color, #0060df)";
+      const defaultBorder = "1px solid var(--zen-colors-border, var(--chrome-content-separator-color, #555))";
+
+      switch (border) {
+        case "none":
+          this.sidebarElement.style.border = defaultBorder;
+          break;
+        case "left":
+          this.sidebarElement.style.borderLeft = `2px solid ${borderColor}`;
+          this.sidebarElement.style.borderRight = "none";
+          this.sidebarElement.style.borderTop = defaultBorder;
+          this.sidebarElement.style.borderBottom = defaultBorder;
+          break;
+        case "right":
+          this.sidebarElement.style.borderRight = `2px solid ${borderColor}`;
+          this.sidebarElement.style.borderLeft = "none";
+          this.sidebarElement.style.borderTop = defaultBorder;
+          this.sidebarElement.style.borderBottom = defaultBorder;
+          break;
+        case "both":
+          this.sidebarElement.style.borderLeft = `2px solid ${borderColor}`;
+          this.sidebarElement.style.borderRight = `2px solid ${borderColor}`;
+          this.sidebarElement.style.borderTop = defaultBorder;
+          this.sidebarElement.style.borderBottom = defaultBorder;
+          break;
+      }
+    },
     },
 
     applySettings() {
@@ -279,54 +478,30 @@
       const position = CONFIG.position;
       const autoHide = CONFIG.autoHide;
       const animated = CONFIG.animated;
-      const border = CONFIG.containerBorder;
 
-      debugLog(`Applying settings: position=${position}, autoHide=${autoHide}, animated=${animated}, border=${border}`);
+      debugLog(`Applying settings: position=${position}, autoHide=${autoHide}, animated=${animated}`);
 
-      // Position
-      if (position === "left") {
-        this.sidebarElement.style.left = "0";
-        this.sidebarElement.style.right = "auto";
-        this.sidebarElement.style.borderLeft = "none";
-        this.sidebarElement.style.borderRight = "1px solid var(--zen-colors-border, #333)";
-      } else {
-        this.sidebarElement.style.right = "0";
-        this.sidebarElement.style.left = "auto";
-        this.sidebarElement.style.borderRight = "none";
-        this.sidebarElement.style.borderLeft = "1px solid var(--zen-colors-border, #333)";
-      }
+      // Update width
+      this.sidebarElement.style.width = `${CONFIG.width}px`;
 
       // Auto-hide
       this.sidebarElement.setAttribute("data-auto-hide", autoHide);
       this.sidebarElement.setAttribute("data-position", position);
-      this.sidebarElement.setAttribute("data-border", border);
 
       // Animation
       if (animated) {
         this.sidebarElement.style.transition = "transform 0.3s ease-in-out";
       }
 
-      // Border
-      switch (border) {
-        case "none":
-          this.sidebarElement.style.borderLeft = "none";
-          this.sidebarElement.style.borderRight = "none";
-          break;
-        case "left":
-          this.sidebarElement.style.borderLeft = "1px solid var(--zen-colors-border, #333)";
-          this.sidebarElement.style.borderRight = "none";
-          break;
-        case "right":
-          this.sidebarElement.style.borderRight = "1px solid var(--zen-colors-border, #333)";
-          this.sidebarElement.style.borderLeft = "none";
-          break;
-        case "both":
-          this.sidebarElement.style.borderLeft = "1px solid var(--zen-colors-border, #333)";
-          this.sidebarElement.style.borderRight = "1px solid var(--zen-colors-border, #333)";
-          break;
+      // Update border styling
+      this.updateBorderStyling();
+
+      // Update container layout for position changes
+      if (this.sidebarContainer) {
+        this.sidebarContainer.style.flexDirection = position === "left" ? "row" : "row-reverse";
       }
 
-      // Adjust main window
+      // Mark main window for CSS targeting
       const mainWindow = document.getElementById("main-window");
       if (mainWindow) {
         mainWindow.setAttribute("zen-second-sidebar-enabled", "true");
@@ -417,17 +592,12 @@
         
         this.sidebarElement.addEventListener("mouseenter", () => {
           clearTimeout(hideTimeout);
-          this.sidebarElement.style.transform = "";
+          this.sidebarElement.classList.remove("hidden");
         });
 
         this.sidebarElement.addEventListener("mouseleave", () => {
-          const position = CONFIG.position;
           hideTimeout = setTimeout(() => {
-            if (position === "left") {
-              this.sidebarElement.style.transform = "translateX(-290px)";
-            } else {
-              this.sidebarElement.style.transform = "translateX(290px)";
-            }
+            this.sidebarElement.classList.add("hidden");
           }, 500);
         });
       }
@@ -440,8 +610,20 @@
       
       debugLog("Destroying second sidebar...");
       
-      if (this.sidebarElement && this.sidebarElement.parentNode) {
-        this.sidebarElement.parentNode.removeChild(this.sidebarElement);
+      if (this.sidebarContainer && this.sidebarContainer.parentNode) {
+        // Restore original zen-tabbox-wrapper content
+        const zenTabboxWrapper = document.getElementById("zen-tabbox-wrapper");
+        const contentWrapper = this.sidebarContainer.querySelector(".zen-second-sidebar-content-wrapper");
+        
+        if (zenTabboxWrapper && contentWrapper) {
+          // Move content back
+          Array.from(contentWrapper.children).forEach(child => {
+            zenTabboxWrapper.appendChild(child);
+          });
+          
+          // Remove our container
+          this.sidebarContainer.remove();
+        }
       }
       
       const mainWindow = document.getElementById("main-window");
@@ -460,7 +642,7 @@
     }
   };
 
-  // Simple initialization without complex preference system
+  // Initialize like Nebula does - simple and direct
   const runInit = () => {
     try {
       ZenSecondSidebar.init();
@@ -473,9 +655,10 @@
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", runInit);
   } else {
+    // Small delay to ensure Zen is fully loaded
     setTimeout(runInit, 100);
   }
 
-  debugLog("Zen Second Sidebar script loaded");
+  debugLog("Zen Second Sidebar script loaded with preferences support");
 
 })();
