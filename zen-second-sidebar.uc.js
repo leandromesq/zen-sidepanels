@@ -1,88 +1,31 @@
 // ==UserScript==
-// @name            Zen Garden - Second Sidebar
+// @name            Zen Second Sidebar
 // @description     A second sidebar with web panels for Zen Browser, bringing web panels back with native feel and look. Supports customizable positioning, web panel management, and auto-hide features.
 // @author          k00lagin
 // @homepageURL     https://github.com/k00lagin/zen-second-sidebar
-// @include         chrome://browser/content/browser.xhtml
+// @include         main
 // @version         2.0.0
 // ==/UserScript==
 
-// Check if already loaded to prevent multiple initializations
-if (window.zenSecondSidebarLoaded) {
-  console.log("Zen Second Sidebar: Already loaded, skipping...");
-} else {
+(function() {
+  'use strict';
+
+  // Check if already loaded to prevent multiple initializations
+  if (window.zenSecondSidebarLoaded) {
+    console.log("Zen Second Sidebar: Already loaded, skipping...");
+    return;
+  }
   window.zenSecondSidebarLoaded = true;
 
-  // PREFS object for Sine compatibility
-  const PREFS = {
-    ENABLED: "zen-extra-sidebar.enabled",
-    POSITION: "zen-extra-sidebar.settings.position", 
-    NEW_WEB_PANEL_POSITION: "zen-extra-sidebar.settings.newWebPanelPosition",
-    HIDE_IN_POPUP_WINDOWS: "zen-extra-sidebar.settings.hideInPopupWindows",
-    AUTO_HIDE_BACK_BUTTON: "zen-extra-sidebar.settings.autoHideBackButton",
-    AUTO_HIDE_FORWARD_BUTTON: "zen-extra-sidebar.settings.autoHideForwardButton",
-    CONTAINER_BORDER: "zen-extra-sidebar.settings.containerBorder",
-    AUTO_HIDE_SIDEBAR: "zen-extra-sidebar.settings.autoHideSidebar",
-    HIDE_SIDEBAR_ANIMATED: "zen-extra-sidebar.settings.hideSidebarAnimated",
-
-    defaultValues: {
-      "zen-extra-sidebar.enabled": true,
-      "zen-extra-sidebar.settings.position": "right",
-      "zen-extra-sidebar.settings.newWebPanelPosition": "after", 
-      "zen-extra-sidebar.settings.hideInPopupWindows": false,
-      "zen-extra-sidebar.settings.autoHideBackButton": false,
-      "zen-extra-sidebar.settings.autoHideForwardButton": false,
-      "zen-extra-sidebar.settings.containerBorder": "left",
-      "zen-extra-sidebar.settings.autoHideSidebar": false,
-      "zen-extra-sidebar.settings.hideSidebarAnimated": false
-    },
-
-    getPref(key) {
-      try {
-        const prefBranch = Services.prefs.getBranch("");
-        const defaultValue = this.defaultValues[key];
-
-        if (typeof defaultValue === "boolean") {
-          return prefBranch.getBoolPref(key, defaultValue);
-        } else if (typeof defaultValue === "string") {
-          return prefBranch.getStringPref(key, defaultValue);
-        } else if (typeof defaultValue === "number") {
-          return prefBranch.getIntPref(key, defaultValue);
-        }
-        return defaultValue;
-      } catch (e) {
-        console.error("Zen Second Sidebar: Error getting preference:", e);
-        return this.defaultValues[key];
-      }
-    },
-
-    setPref(prefKey, value) {
-      try {
-        const prefBranch = Services.prefs.getBranch("");
-        
-        if (typeof value === "boolean") {
-          prefBranch.setBoolPref(prefKey, value);
-        } else if (typeof value === "string") {
-          prefBranch.setStringPref(prefKey, value);
-        } else if (typeof value === "number") {
-          prefBranch.setIntPref(prefKey, value);
-        }
-      } catch (e) {
-        console.error("Zen Second Sidebar: Error setting preference:", e);
-      }
-    },
-
-    setInitialPrefs() {
-      for (const [key, value] of Object.entries(this.defaultValues)) {
-        if (!Services.prefs.prefHasUserValue(key)) {
-          this.setPref(key, value);
-        }
-      }
-    }
+  // Simple configuration object - no Services.prefs dependency
+  const CONFIG = {
+    enabled: true,
+    position: "right", // "left" or "right"
+    autoHide: false,
+    animated: true,
+    containerBorder: "left", // "none", "left", "right", "both"
+    hideInPopupWindows: false
   };
-
-  // Initialize preferences
-  PREFS.setInitialPrefs();
 
   const debugLog = (...args) => {
     console.log("Zen Second Sidebar:", ...args);
@@ -126,7 +69,7 @@ if (window.zenSecondSidebarLoaded) {
     webPanels: [],
 
     init() {
-      if (this.initialized || !PREFS.getPref(PREFS.ENABLED)) {
+      if (this.initialized || !CONFIG.enabled) {
         return;
       }
 
@@ -137,7 +80,7 @@ if (window.zenSecondSidebarLoaded) {
         if (window !== window.top) return;
 
         // Check if we should hide in popup windows
-        if (isPopupWindow() && PREFS.getPref(PREFS.HIDE_IN_POPUP_WINDOWS)) {
+        if (isPopupWindow() && CONFIG.hideInPopupWindows) {
           debugLog("Skipping initialization in popup window");
           return;
         }
@@ -333,10 +276,10 @@ if (window.zenSecondSidebarLoaded) {
     applySettings() {
       if (!this.sidebarElement) return;
 
-      const position = PREFS.getPref(PREFS.POSITION);
-      const autoHide = PREFS.getPref(PREFS.AUTO_HIDE_SIDEBAR);
-      const animated = PREFS.getPref(PREFS.HIDE_SIDEBAR_ANIMATED);
-      const border = PREFS.getPref(PREFS.CONTAINER_BORDER);
+      const position = CONFIG.position;
+      const autoHide = CONFIG.autoHide;
+      const animated = CONFIG.animated;
+      const border = CONFIG.containerBorder;
 
       debugLog(`Applying settings: position=${position}, autoHide=${autoHide}, animated=${animated}, border=${border}`);
 
@@ -469,7 +412,7 @@ if (window.zenSecondSidebarLoaded) {
       });
 
       // Auto-hide functionality
-      if (PREFS.getPref(PREFS.AUTO_HIDE_SIDEBAR)) {
+      if (CONFIG.autoHide) {
         let hideTimeout;
         
         this.sidebarElement.addEventListener("mouseenter", () => {
@@ -478,7 +421,7 @@ if (window.zenSecondSidebarLoaded) {
         });
 
         this.sidebarElement.addEventListener("mouseleave", () => {
-          const position = PREFS.getPref(PREFS.POSITION);
+          const position = CONFIG.position;
           hideTimeout = setTimeout(() => {
             if (position === "left") {
               this.sidebarElement.style.transform = "translateX(-290px)";
@@ -517,37 +460,7 @@ if (window.zenSecondSidebarLoaded) {
     }
   };
 
-  // Preference change listener for Sine compatibility
-  const prefObserver = {
-    observe(subject, topic, data) {
-      if (topic === "nsPref:changed") {
-        debugLog("Preference changed:", data);
-        
-        if (data === PREFS.ENABLED) {
-          const enabled = PREFS.getPref(PREFS.ENABLED);
-          if (enabled && !ZenSecondSidebar.initialized) {
-            ZenSecondSidebar.init();
-          } else if (!enabled && ZenSecondSidebar.initialized) {
-            ZenSecondSidebar.destroy();
-          }
-        } else if (data.startsWith("zen-extra-sidebar.settings.")) {
-          // Settings changed, update sidebar
-          ZenSecondSidebar.updateSettings();
-        }
-      }
-    }
-  };
-
-  // Add preference observers
-  Services.prefs.addObserver("zen-extra-sidebar.", prefObserver, false);
-
-  // Cleanup on window unload
-  window.addEventListener("unload", () => {
-    Services.prefs.removeObserver("zen-extra-sidebar.", prefObserver);
-    ZenSecondSidebar.destroy();
-  });
-
-  // Initialize the sidebar
+  // Simple initialization without complex preference system
   const runInit = () => {
     try {
       ZenSecondSidebar.init();
@@ -556,19 +469,13 @@ if (window.zenSecondSidebarLoaded) {
     }
   };
 
-  // Handle different initialization contexts
-  if (typeof UC_API !== "undefined" && UC_API.Runtime) {
-    UC_API.Runtime.startupFinished().then(runInit);
-  } else if (typeof delayedStartupPromise !== "undefined") {
-    delayedStartupPromise.then(runInit);
+  // Initialize when DOM is ready
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", runInit);
   } else {
-    // Fallback for Sine or other contexts
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", runInit);
-    } else {
-      setTimeout(runInit, 100);
-    }
+    setTimeout(runInit, 100);
   }
 
   debugLog("Zen Second Sidebar script loaded");
-}
+
+})();
