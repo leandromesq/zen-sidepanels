@@ -1,4 +1,130 @@
-/* Sidepanels */
-@import "Sidepanels/sidepanels.css";
+/* ==== Zen Sidepanels ==== */
+/* https://github.com/leandromesq/zen-sidepanels */
+/* ====== v0.1.0 ====== */
 
-/* Add additional CSS below */
+/* Main sidebar container */
+#zen-sidepanels-container {
+  background: var(--zen-colors-secondary) !important;
+  border-left: 1px solid var(--zen-colors-border) !important;
+  z-index: 1000 !important;
+  min-width: 200px !important;
+  max-width: 600px !important;
+}
+
+/* Sidebar header */
+#zen-sidepanels-header {
+  background: var(--zen-colors-tertiary) !important;
+  border-bottom: 1px solid var(--zen-colors-border) !important;
+  padding: 8px !important;
+  min-height: 40px !important;
+}
+
+/* URL input field */
+#zen-sidepanels-url {
+  flex: 1 !important;
+  margin-right: 8px !important;
+  padding: 6px 10px !important;
+  border: 1px solid var(--zen-colors-border) !important;
+  border-radius: 6px !important;
+  background: var(--zen-colors-primary) !important;
+  color: var(--zen-colors-primary-text) !important;
+  font-size: 13px !important;
+}
+
+#zen-sidepanels-url:focus {
+  outline: 2px solid var(--zen-primary-color) !important;
+  outline-offset: -2px !important;
+  border-color: var(--zen-primary-color) !important;
+}
+
+/* Control buttons */
+#zen-sidepanels-container button {
+  padding: 6px 12px !important;
+  border: 1px solid var(--zen-colors-border) !important;
+  border-radius: 6px !important;
+  background: var(--zen-colors-secondary) !important;
+  color: var(--zen-colors-secondary-text) !important;
+  cursor: pointer !important;
+  font-size: 13px !important;
+  margin-left: 4px !important;
+  transition: background-color 0.15s ease !important;
+}
+
+#zen-sidepanels-container button:hover {
+  background: var(--zen-colors-tertiary) !important;
+}
+
+#zen-sidepanels-container button:active {
+  background: var(--zen-colors-border) !important;
+}
+
+/* Close button specific styling */
+#zen-sidepanels-container button:last-child {
+  font-size: 16px !important;
+  font-weight: bold !important;
+  padding: 4px 10px !important;
+  line-height: 1 !important;
+}
+
+/* Webview container */
+#zen-sidepanels-container vbox:last-child {
+  flex: 1 !important;
+  background: var(--zen-colors-primary) !important;
+}
+
+/* Browser element within sidebar */
+#zen-sidepanels-container browser {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  background: white !important;
+}
+
+/* Responsive behavior */
+@media (max-width: 1200px) {
+  #zen-sidepanels-container {
+    width: 250px !important;
+    min-width: 250px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  #zen-sidepanels-container {
+    width: 200px !important;
+    min-width: 200px !important;
+  }
+  
+  #zen-sidepanels-header {
+    flex-wrap: wrap !important;
+    height: auto !important;
+    min-height: auto !important;
+  }
+  
+  #zen-sidepanels-url {
+    width: 100% !important;
+    margin-right: 0 !important;
+    margin-bottom: 4px !important;
+  }
+  
+  #zen-sidepanels-container button {
+    margin-left: 0 !important;
+    margin-right: 4px !important;
+  }
+}
+
+/* Dark theme adjustments */
+@media (prefers-color-scheme: dark) {
+  #zen-sidepanels-container browser {
+    background: #1a1a1a !important;
+  }
+}
+
+/* Integration with Zen Browser sidebar */
+#sidebar-box:not([hidden]) ~ #zen-sidepanels-container {
+  border-left: none !important;
+}
+
+/* Ensure proper stacking with other UI elements */
+#zen-sidepanels-container {
+  order: 999 !important;
+}
