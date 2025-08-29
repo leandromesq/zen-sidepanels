@@ -17,66 +17,80 @@
   }
   window.zenSecondSidebarLoaded = true;
 
-  // Preference helper - simple about:config access like Nebula uses
+  // Simplified preference helper - fallback to localStorage if Components not available
   const Prefs = {
     get(prefName, defaultValue = null) {
       try {
-        const prefs = Components.classes["@mozilla.org/preferences-service;1"]
-          .getService(Components.interfaces.nsIPrefService)
-          .getBranch("");
-        
-        if (!prefs.prefHasUserValue(prefName)) return defaultValue;
-        
-        switch (prefs.getPrefType(prefName)) {
-          case prefs.PREF_BOOL: return prefs.getBoolPref(prefName);
-          case prefs.PREF_INT: return prefs.getIntPref(prefName);
-          case prefs.PREF_STRING: return prefs.getStringPref(prefName);
-          default: return defaultValue;
+        // Try Firefox preference system first
+        if (typeof Components !== "undefined") {
+          const prefs = Components.classes["@mozilla.org/preferences-service;1"]
+            .getService(Components.interfaces.nsIPrefService)
+            .getBranch("");
+          
+          if (!prefs.prefHasUserValue(prefName)) return defaultValue;
+          
+          switch (prefs.getPrefType(prefName)) {
+            case prefs.PREF_BOOL: return prefs.getBoolPref(prefName);
+            case prefs.PREF_INT: return prefs.getIntPref(prefName);
+            case prefs.PREF_STRING: return prefs.getStringPref(prefName);
+            default: return defaultValue;
+          }
+        } else {
+          // Fallback to localStorage
+          const stored = localStorage.getItem(prefName);
+          return stored ? JSON.parse(stored) : defaultValue;
         }
       } catch (e) {
+        debugLog("Failed to get pref:", prefName, "using default:", defaultValue);
         return defaultValue;
       }
     },
     
     set(prefName, value) {
       try {
-        const prefs = Components.classes["@mozilla.org/preferences-service;1"]
-          .getService(Components.interfaces.nsIPrefService)
-          .getBranch("");
-          
-        switch (typeof value) {
-          case 'boolean': prefs.setBoolPref(prefName, value); break;
-          case 'number': prefs.setIntPref(prefName, value); break;
-          case 'string': prefs.setStringPref(prefName, value); break;
+        if (typeof Components !== "undefined") {
+          const prefs = Components.classes["@mozilla.org/preferences-service;1"]
+            .getService(Components.interfaces.nsIPrefService)
+            .getBranch("");
+            
+          switch (typeof value) {
+            case 'boolean': prefs.setBoolPref(prefName, value); break;
+            case 'number': prefs.setIntPref(prefName, value); break;
+            case 'string': prefs.setStringPref(prefName, value); break;
+          }
+        } else {
+          // Fallback to localStorage
+          localStorage.setItem(prefName, JSON.stringify(value));
         }
+        debugLog("Set pref:", prefName, "=", value);
       } catch (e) {
-        console.error("Failed to set pref:", prefName, e);
+        debugError("Failed to set pref:", prefName, e);
       }
     }
   };
 
-  // Configuration with about:config integration
+  // Configuration with about:config integration - match preferences.json
   const CONFIG = {
-    get enabled() { return Prefs.get("zen-second-sidebar.enabled", true); },
-    set enabled(val) { Prefs.set("zen-second-sidebar.enabled", val); },
+    get enabled() { return Prefs.get("zen-extra-sidebar.enabled", true); },
+    set enabled(val) { Prefs.set("zen-extra-sidebar.enabled", val); },
     
-    get position() { return Prefs.get("zen-second-sidebar.position", "right"); },
-    set position(val) { Prefs.set("zen-second-sidebar.position", val); },
+    get position() { return Prefs.get("zen-extra-sidebar.settings.position", "right"); },
+    set position(val) { Prefs.set("zen-extra-sidebar.settings.position", val); },
     
-    get autoHide() { return Prefs.get("zen-second-sidebar.autoHide", false); },
-    set autoHide(val) { Prefs.set("zen-second-sidebar.autoHide", val); },
+    get autoHide() { return Prefs.get("zen-extra-sidebar.settings.autoHideSidebar", false); },
+    set autoHide(val) { Prefs.set("zen-extra-sidebar.settings.autoHideSidebar", val); },
     
-    get animated() { return Prefs.get("zen-second-sidebar.animated", true); },
-    set animated(val) { Prefs.set("zen-second-sidebar.animated", val); },
+    get animated() { return Prefs.get("zen-extra-sidebar.settings.hideSidebarAnimated", true); },
+    set animated(val) { Prefs.set("zen-extra-sidebar.settings.hideSidebarAnimated", val); },
     
-    get containerBorder() { return Prefs.get("zen-second-sidebar.containerBorder", "left"); },
-    set containerBorder(val) { Prefs.set("zen-second-sidebar.containerBorder", val); },
+    get containerBorder() { return Prefs.get("zen-extra-sidebar.settings.containerBorder", "left"); },
+    set containerBorder(val) { Prefs.set("zen-extra-sidebar.settings.containerBorder", val); },
     
-    get hideInPopupWindows() { return Prefs.get("zen-second-sidebar.hideInPopupWindows", false); },
-    set hideInPopupWindows(val) { Prefs.set("zen-second-sidebar.hideInPopupWindows", val); },
+    get hideInPopupWindows() { return Prefs.get("zen-extra-sidebar.settings.hideInPopupWindows", false); },
+    set hideInPopupWindows(val) { Prefs.set("zen-extra-sidebar.settings.hideInPopupWindows", val); },
     
-    get width() { return Prefs.get("zen-second-sidebar.width", 300); },
-    set width(val) { Prefs.set("zen-second-sidebar.width", val); }
+    get width() { return Prefs.get("zen-extra-sidebar.settings.width", 300); },
+    set width(val) { Prefs.set("zen-extra-sidebar.settings.width", val); }
   };
 
   const debugLog = (...args) => {
@@ -86,6 +100,30 @@
   const debugError = (...args) => {
     console.error("Zen Second Sidebar:", ...args);
   };
+
+  // Test basic functionality immediately
+  debugLog("Script starting - checking environment");
+  debugLog("Window context:", window === window.top ? "main window" : "subframe");
+  debugLog("Document ready state:", document.readyState);
+  debugLog("zen-tabbox-wrapper exists:", !!document.getElementById("zen-tabbox-wrapper"));
+  debugLog("Components available:", typeof Components !== "undefined");
+  
+  // Test Components.classes availability
+  try {
+    const testPrefs = Components.classes["@mozilla.org/preferences-service;1"]
+      .getService(Components.interfaces.nsIPrefService)
+      .getBranch("");
+    debugLog("Preference service available: YES");
+  } catch (e) {
+    debugError("Preference service NOT available:", e.message);
+  }
+
+  debugLog("Testing CONFIG values:");
+  debugLog("CONFIG.enabled:", CONFIG.enabled);
+  debugLog("CONFIG.position:", CONFIG.position);
+  debugLog("CONFIG.autoHide:", CONFIG.autoHide);
+  debugLog("CONFIG.animated:", CONFIG.animated);
+  debugLog("CONFIG.width:", CONFIG.width);
 
   // Utility functions
   const isPopupWindow = () => {
@@ -122,7 +160,12 @@
     webPanels: [],
 
     init() {
+      debugLog("=== INIT CALLED ===");
+      debugLog("Already initialized:", this.initialized);
+      debugLog("CONFIG.enabled:", CONFIG.enabled);
+      
       if (this.initialized || !CONFIG.enabled) {
+        debugLog("Skipping init - already initialized or disabled");
         return;
       }
 
@@ -130,7 +173,10 @@
 
       try {
         // Check if we're in the right window
-        if (window !== window.top) return;
+        if (window !== window.top) {
+          debugLog("Not in top window, exiting");
+          return;
+        }
 
         // Check if we should hide in popup windows
         if (isPopupWindow() && CONFIG.hideInPopupWindows) {
@@ -138,15 +184,28 @@
           return;
         }
 
+        debugLog("Calling createSidebarStructure...");
         this.createSidebarStructure();
+        
+        if (!this.sidebarElement) {
+          debugError("Failed to create sidebar element!");
+          return;
+        }
+        
+        debugLog("Calling injectCSS...");
         this.injectCSS();
+        
+        debugLog("Calling applySettings...");
         this.applySettings();
+        
+        debugLog("Calling setupEventListeners...");
         this.setupEventListeners();
         
         this.initialized = true;
-        debugLog("Second sidebar initialized successfully");
+        debugLog("=== Second sidebar initialized successfully ===");
       } catch (error) {
         debugError("Failed to initialize second sidebar:", error);
+        debugError("Error stack:", error.stack);
       }
     },
 
@@ -644,21 +703,32 @@
 
   // Initialize like Nebula does - simple and direct
   const runInit = () => {
+    debugLog("=== runInit called ===");
     try {
       ZenSecondSidebar.init();
     } catch (error) {
       debugError("Error during initialization:", error);
+      debugError("Error stack:", error.stack);
     }
   };
 
   // Initialize when DOM is ready
+  debugLog("Document readyState:", document.readyState);
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", runInit);
+    debugLog("Document still loading, adding DOMContentLoaded listener");
+    document.addEventListener("DOMContentLoaded", () => {
+      debugLog("DOMContentLoaded fired, calling runInit");
+      runInit();
+    });
   } else {
+    debugLog("Document already loaded, scheduling init with timeout");
     // Small delay to ensure Zen is fully loaded
-    setTimeout(runInit, 100);
+    setTimeout(() => {
+      debugLog("Timeout fired, calling runInit");
+      runInit();
+    }, 100);
   }
 
-  debugLog("Zen Second Sidebar script loaded with preferences support");
+  debugLog("=== Zen Second Sidebar script loaded with preferences support ===");
 
 })();
