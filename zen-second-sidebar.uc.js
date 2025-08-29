@@ -156,12 +156,20 @@ if (window.zenSecondSidebarLoaded) {
     createSidebarStructure() {
       debugLog("Creating sidebar structure...");
       
-      // Find the main container
+      // Find the main container - try multiple possible containers
       const zenTabboxWrapper = document.getElementById("zen-tabbox-wrapper");
-      if (!zenTabboxWrapper) {
-        debugError("Could not find zen-tabbox-wrapper");
+      const mainWindow = document.getElementById("main-window");
+      const browserContainer = document.getElementById("browser");
+      const appcontent = document.getElementById("appcontent");
+      
+      const container = zenTabboxWrapper || mainWindow || browserContainer || appcontent || document.body;
+      
+      if (!container) {
+        debugError("Could not find any valid container element");
         return;
       }
+      
+      debugLog("Using container:", container.id || container.tagName);
 
       // Create the main sidebar container
       this.sidebarElement = createElement("div", {
