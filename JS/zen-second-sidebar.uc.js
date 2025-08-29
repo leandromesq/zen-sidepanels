@@ -1,14 +1,11 @@
-// ==UserScript==
-// @name            Zen Second Sidebar
-// @description     A second sidebar with web panels for Zen Browser, bringing web panels back with native feel and look. Supports customizable positioning, web panel management, and auto-hide features.
-// @author          k00lagin
-// @homepageURL     https://github.com/k00lagin/zen-second-sidebar
-// @include         main
-// @version         2.0.0
-// ==/UserScript==
+// Zen Second Sidebar - Sine Compatible
+// A second sidebar with web panels for Zen Browser
+console.log("=== ZEN SECOND SIDEBAR SCRIPT LOADING ===");
+console.log("Date:", new Date().toISOString());
+console.log("Location:", window.location.href);
 
 (function() {
-  'use strict';
+  console.log("Zen Second Sidebar: Script execution started");
 
   // Check if already loaded to prevent multiple initializations
   if (window.zenSecondSidebarLoaded) {
@@ -16,6 +13,7 @@
     return;
   }
   window.zenSecondSidebarLoaded = true;
+  console.log("Zen Second Sidebar: Marked as loaded");
 
   // Simplified preference helper - fallback to localStorage if Components not available
   const Prefs = {

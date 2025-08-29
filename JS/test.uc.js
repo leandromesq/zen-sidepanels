@@ -1,14 +1,9 @@
-// ==UserScript==
-// @name            Test Script
-// @description     Simple test to verify JS loading
-// @author          test
-// @include         main
-// @version         1.0.0
-// ==/UserScript==
+// Simple test script for Sine JS loading
+console.log("=== SINE TEST SCRIPT LOADED ===");
+console.log("Date:", new Date().toISOString());
+console.log("Location:", window.location.href);
 
 (function() {
-  'use strict';
-  
   console.log("TEST SCRIPT LOADED SUCCESSFULLY!");
   
   // Add a visible element to the page to confirm loading
