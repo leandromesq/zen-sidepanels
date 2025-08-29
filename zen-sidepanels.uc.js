@@ -2,44 +2,97 @@
 /* https://github.com/leandromesq/zen-sidepanels */
 /* ====== v0.1.0 ====== */
 
-class ZenSidepanels {
-  #initialized = false;
-  #sidebarVisible = false;
-  #currentUrl = "";
-  #sidebarContainer = null;
-  #webview = null;
+// Zen UserChrome Script - Proper initialization pattern
+(function() {
+  'use strict';
 
-  constructor() {
-    console.log("[ZenSidepanels] Constructor called");
-  }
+  // === POPUP/DIALOG DETECTION ===
+  // Prevent running in popup windows or dialogs
+  setTimeout(() => {
+    // Method 1: Check for popup-specific chrome URI
+    if (location.href.includes('chrome://browser/content/places/') ||
+        location.href.includes('chrome://browser/content/preferences/') ||
+        location.href.includes('chrome://global/content/')) {
+      console.log('Zen Sidepanels: Skipping - detected chrome dialog');
+      return;
+    }
+    
+    // Method 2: Check document title for common popup indicators
+    if (document.title.includes('Firefox') && (
+        document.title.includes('Preferences') || 
+        document.title.includes('Settings') ||
+        document.title.includes('Bookmarks') ||
+        document.title.includes('Library'))) {
+      console.log('Zen Sidepanels: Skipping - detected settings/bookmarks window');
+      return;
+    }
+    
+    // Method 3: Check for required main browser elements
+    const requiredElements = ['#navigator-toolbox', '#browser', '#main-window'];
+    const missingElements = requiredElements.filter(selector => !document.querySelector(selector));
+    
+    if (missingElements.length > 0) {
+      console.log('Zen Sidepanels: Skipping - missing main browser elements:', missingElements);
+      return;
+    }
+    
+    // Method 4: Check window size (popups are usually smaller)
+    if (window.outerWidth < 400 || window.outerHeight < 300) {
+      console.log('Zen Sidepanels: Skipping - window too small (likely popup)');
+      return;
+    }
+    
+    // Method 5: Check for dialog-specific attributes
+    if (document.documentElement.hasAttribute('dlgtype')) {
+      console.log('Zen Sidepanels: Skipping - dialog window detected');
+      return;
+    }
+    
+    // If all checks pass, continue with initialization
+    console.log('Zen Sidepanels: All popup exclusion checks passed, proceeding with initialization');
+    
+    // === MAIN SCRIPT INITIALIZATION CONTINUES HERE ===
+    initializeMainScript();
+  }, 100); // Small delay to ensure DOM elements are loaded
 
-  init() {
-    if (this.#initialized) return;
-    this.#initialized = true;
+  // === MAIN SCRIPT FUNCTIONS ===
+  function initializeMainScript() {
+    // Global state variables
+    let initialized = false;
+    let sidebarVisible = false;
+    let currentUrl = "";
+    let sidebarContainer = null;
+    let webview = null;
+
     console.log("[ZenSidepanels] Initializing...");
 
-    this.#initHandlers();
-    this.#createSidebar();
-    this.#setupPreferences();
-    
-    console.log("[ZenSidepanels] Initialization complete");
-  }
-
-  #initHandlers() {
-    // Listen for browser ready events
-    if (document.readyState === "complete") {
-      this.#onBrowserReady();
-    } else {
-      window.addEventListener("load", this.#onBrowserReady.bind(this), { once: true });
+    // Initialize the sidebar system
+    function init() {
+      if (initialized) return;
+      initialized = true;
+      
+      initHandlers();
+      createSidebar();
+      setupPreferences();
+      
+      console.log("[ZenSidepanels] Initialization complete");
     }
-  }
 
-  #onBrowserReady() {
-    console.log("[ZenSidepanels] Browser ready");
-    // Additional setup can go here
-  }
+    function initHandlers() {
+      // Listen for browser ready events
+      if (document.readyState === "complete") {
+        onBrowserReady();
+      } else {
+        window.addEventListener("load", onBrowserReady, { once: true });
+      }
+    }
 
-  #createSidebar() {
+    function onBrowserReady() {
+      console.log("[ZenSidepanels] Browser ready");
+      // Additional setup can go here
+    }
+
+    function createSidebar() {
     console.log("[ZenSidepanels] Creating sidebar");
 
     // Find the main browser container
@@ -50,9 +103,9 @@ class ZenSidepanels {
     }
 
     // Create sidebar container
-    this.#sidebarContainer = document.createElement("vbox");
-    this.#sidebarContainer.id = "zen-sidepanels-container";
-    this.#sidebarContainer.style.cssText = `
+    sidebarContainer = document.createElement("vbox");
+    sidebarContainer.id = "zen-sidepanels-container";
+    sidebarContainer.style.cssText = `
       width: 300px;
       min-width: 200px;
       max-width: 600px;
@@ -128,44 +181,44 @@ class ZenSidepanels {
     `;
 
     // Create webview
-    this.#webview = document.createElement("browser");
-    this.#webview.setAttribute("type", "content");
-    this.#webview.setAttribute("remote", "true");
-    this.#webview.setAttribute("maychangeremoteness", "true");
-    this.#webview.style.cssText = `
+    webview = document.createElement("browser");
+    webview.setAttribute("type", "content");
+    webview.setAttribute("remote", "true");
+    webview.setAttribute("maychangeremoteness", "true");
+    webview.style.cssText = `
       width: 100%;
       height: 100%;
       border: none;
     `;
 
-    webviewContainer.appendChild(this.#webview);
+    webviewContainer.appendChild(webview);
 
     // Assemble sidebar
-    this.#sidebarContainer.appendChild(header);
-    this.#sidebarContainer.appendChild(webviewContainer);
+    sidebarContainer.appendChild(header);
+    sidebarContainer.appendChild(webviewContainer);
 
     // Insert sidebar into DOM
-    browserContainer.appendChild(this.#sidebarContainer);
+    browserContainer.appendChild(sidebarContainer);
 
     // Add event listeners
     urlInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
-        this.#loadUrl(urlInput.value);
+        loadUrl(urlInput.value);
       }
     });
 
     goButton.addEventListener("click", () => {
-      this.#loadUrl(urlInput.value);
+      loadUrl(urlInput.value);
     });
 
     closeButton.addEventListener("click", () => {
-      this.hideSidebar();
+      hideSidebar();
     });
 
     console.log("[ZenSidepanels] Sidebar created successfully");
   }
 
-  #loadUrl(url) {
+  function loadUrl(url) {
     if (!url) return;
 
     // Add protocol if missing
@@ -173,11 +226,11 @@ class ZenSidepanels {
       url = "https://" + url;
     }
 
-    this.#currentUrl = url;
+    currentUrl = url;
     console.log("[ZenSidepanels] Loading URL:", url);
 
     try {
-      this.#webview.loadURI(Services.io.newURI(url), {
+      webview.loadURI(Services.io.newURI(url), {
         triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
       });
     } catch (e) {
@@ -185,7 +238,7 @@ class ZenSidepanels {
     }
   }
 
-  #setupPreferences() {
+  function setupPreferences() {
     console.log("[ZenSidepanels] Setting up preferences");
 
     // Create context menu item for toggling sidebar
@@ -198,7 +251,7 @@ class ZenSidepanels {
       if (tabContextMenu) {
         tabContextMenu.appendChild(contextMenuItems);
         document.getElementById("zen-sidepanels-toggle").addEventListener("command", () => {
-          this.toggleSidebar();
+          toggleSidebar();
         });
       }
     }
@@ -211,56 +264,70 @@ class ZenSidepanels {
       `);
       keyset.appendChild(keyFragment);
       document.getElementById("zen-sidepanels-key").addEventListener("command", () => {
-        this.toggleSidebar();
+        toggleSidebar();
       });
     }
   }
 
-  toggleSidebar() {
-    if (this.#sidebarVisible) {
-      this.hideSidebar();
+  function toggleSidebar() {
+    if (sidebarVisible) {
+      hideSidebar();
     } else {
-      this.showSidebar();
+      showSidebar();
     }
   }
 
-  showSidebar() {
-    if (!this.#sidebarContainer) return;
+  function showSidebar() {
+    if (!sidebarContainer) return;
 
-    this.#sidebarContainer.style.display = "flex";
-    this.#sidebarVisible = true;
+    sidebarContainer.style.display = "flex";
+    sidebarVisible = true;
     console.log("[ZenSidepanels] Sidebar shown");
 
     // Load a default page if no URL is set
-    if (!this.#currentUrl) {
-      this.#loadUrl("https://www.google.com");
+    if (!currentUrl) {
+      loadUrl("https://www.google.com");
     }
   }
 
-  hideSidebar() {
-    if (!this.#sidebarContainer) return;
+  function hideSidebar() {
+    if (!sidebarContainer) return;
 
-    this.#sidebarContainer.style.display = "none";
-    this.#sidebarVisible = false;
+    sidebarContainer.style.display = "none";
+    sidebarVisible = false;
     console.log("[ZenSidepanels] Sidebar hidden");
   }
 
   // Public API methods
-  loadUrl(url) {
-    this.#loadUrl(url);
-    if (!this.#sidebarVisible) {
-      this.showSidebar();
+  function loadUrlPublic(url) {
+    loadUrl(url);
+    if (!sidebarVisible) {
+      showSidebar();
     }
   }
 
-  getCurrentUrl() {
-    return this.#currentUrl;
+  function getCurrentUrl() {
+    return currentUrl;
   }
 
-  isSidebarVisible() {
-    return this.#sidebarVisible;
+  function isSidebarVisible() {
+    return sidebarVisible;
   }
-}
+
+  // Expose public API globally
+  window.zenSidepanels = {
+    loadUrl: loadUrlPublic,
+    getCurrentUrl: getCurrentUrl,
+    isSidebarVisible: isSidebarVisible,
+    toggleSidebar: toggleSidebar,
+    showSidebar: showSidebar,
+    hideSidebar: hideSidebar
+  };
+
+  // Initialize the sidebar system
+  init();
+
+} // End of initializeMainScript function
 
 // Inject CSS for sidebar styling
 (function addZenSidepanelsCSS() {
@@ -293,18 +360,6 @@ class ZenSidepanels {
   }
 })();
 
-// Global instance initialization
-(function () {
-  if (!globalThis.zenSidepanelsInstance) {
-    window.addEventListener(
-      "load",
-      () => {
-        globalThis.zenSidepanelsInstance = new ZenSidepanels();
-        globalThis.zenSidepanelsInstance.init();
-      },
-      { once: true }
-    );
-  }
-})();
-
 console.log("[ZenSidepanels] Script loaded");
+
+})(); // End of main IIFE
