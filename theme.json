@@ -5,10 +5,7 @@
     "homepage": "https://github.com/leandromesq/zen-sidepanels",
     "preferences": "https://raw.githubusercontent.com/leandromesq/zen-sidepanels/main/preferences.json",
     "style": "https://raw.githubusercontent.com/leandromesq/zen-sidepanels/main/style.css",
-    "js": [
-        "https://raw.githubusercontent.com/leandromesq/zen-sidepanels/main/JS/zen-second-sidebar.uc.js",
-        "https://raw.githubusercontent.com/leandromesq/zen-sidepanels/main/JS/test.uc.js"
-    ],
+    "js": "https://raw.githubusercontent.com/leandromesq/zen-sidepanels/main/JS/test.uc.js",
     "readme": "https://raw.githubusercontent.com/leandromesq/zen-sidepanels/main/README.md",
     "author": "leandromesq",
     "version": "0.1.0",
